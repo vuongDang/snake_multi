@@ -1,0 +1,16 @@
+# Projet long avec Snake multi-joueur
+- Le jeu
+	- Snake solo
+		- init_game
+		- draw_field
+		- draw_snake
+		- draw_food
+		- move_snake
+		- does snake ate food
+	- Intégration d'un deuxième snake
+	- AI Snake
+	- Interface
+		- termion stdin async
+		- termion stdout intorawmode
+- Tableau des meilleurs scores
+- Serveur pouvant héberger plusieurs parties
