@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+// Dimensions du terrain de jeu
 pub const WIDTH: usize = 60;
 pub const HEIGHT: usize = 20;
+pub const SERVER_ADDR: &str = "127.0.0.1:12345";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum PlayerStatus {
@@ -12,7 +14,10 @@ pub enum PlayerStatus {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Game {
-    pub nb_players: i32,
+    // Number of snakes that will be in the game
+    pub nb_snakes: i32,
+    // Number of snakes controlled by bots
+    pub bots: Vec<i32>,
     pub snakes: Vec<Snake>,
     pub food: Point,
     pub scores: Vec<PlayerStatus>,

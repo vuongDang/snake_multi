@@ -40,24 +40,38 @@ pub enum TurnOutcome {
 
 impl Game {
     // Initialise une structure Game
-    pub fn init(nb_players: i32) -> Self {
+    pub fn init(nb_snakes: i32, nb_bots: i32) -> Result<Self, String> {
+        // Il doit y avoir au moins 2 serpents
+        if nb_snakes < 2 {
+            return Err(String::from("At least 2 snakes is needed"));
+        }
+
+        // Le nombre de joueurs doit être au moins de 1
+        if nb_snakes <= nb_bots {
+            return Err(String::from("At least 1 human player is needed"));
+        }
         // Efface le contenu du fichier de log
         File::create(LOG_FILE).unwrap();
         let mut snakes = vec![];
         let mut scores = vec![];
+        let mut bots = vec![];
 
-        for player_nb in 1..nb_players + 1 {
-            snakes.push(Snake::init(nb_players, player_nb));
+        for player_nb in 1..nb_snakes + 1 {
+            if player_nb > (nb_snakes - nb_bots) {
+                bots.push(player_nb);
+            }
+            snakes.push(Snake::init(nb_snakes, player_nb));
             scores.push(PlayerStatus::Player(0));
         }
 
-        Game {
-            nb_players: nb_players,
+        Ok(Game {
+            nb_snakes: nb_snakes,
+            bots: bots,
             snakes: snakes,
             food: Point::random(),
             scores: scores,
             speed: SPEED,
-        }
+        })
     }
 
     // Change la direction des serpents selon les commandes reçues
@@ -143,7 +157,7 @@ impl Game {
     // Check for collisions and return array of losing players
     pub fn check_collisions(&mut self) -> Vec<i32> {
         let mut losers = vec![];
-        log(format!(
+        log_in_file(format!(
             "S1: {:?}, S2: {:?}\n",
             self.snakes[0].head, self.snakes[1].head
         ));
@@ -152,7 +166,7 @@ impl Game {
             for other_snake in self.snakes.iter() {
                 // Collisions tête - corps
                 if other_snake.is_in_body(&snake.head) {
-                    log("Is in body!\n".to_owned());
+                    log_in_file("Is in body!\n".to_owned());
                     losers.push(snake.id);
                 }
 
@@ -177,7 +191,7 @@ impl Game {
     }
 }
 
-fn log(s: String) {
+fn log_in_file(s: String) {
     if let Ok(mut file) = OpenOptions::new().append(true).open(LOG_FILE) {
         file.write(s.as_bytes()).unwrap();
     }
