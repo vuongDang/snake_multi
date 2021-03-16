@@ -18,10 +18,17 @@ pub struct Game {
     pub nb_snakes: i32,
     // Number of snakes controlled by bots
     pub bots: Vec<i32>,
+    pub bots_difficulty: BotMovement,
     pub snakes: Vec<Snake>,
     pub food: Point,
     pub scores: Vec<PlayerStatus>,
     pub speed: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum BotMovement {
+    Random,
+    ToTheFood,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -57,8 +64,10 @@ pub enum ServerMsg {
 
 pub enum ClientMsg {
     SnakeDirection(Direction),
+    Leave,
 }
 
+#[derive(Debug)]
 pub enum Input {
     Left,
     Right,

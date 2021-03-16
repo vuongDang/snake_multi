@@ -1,2 +1,3 @@
-*.vim_session
+.vim_session
+log
 */target/

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 pub mod client;
 pub mod shared_structures;
 use client::Drawer;
@@ -15,6 +14,7 @@ fn main() {
 
     //match recv_game
     loop {
+        let inputs = client.get_inputs();
         match listen_server(&mut stream) {
             Ok(msg) => match msg {
                 Error(_) => client.draw_error(),

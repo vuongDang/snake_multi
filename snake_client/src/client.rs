@@ -1,14 +1,15 @@
 //use crate::game::*;
 //use crate::snake::{Direction, Snake, Point};
 use crate::shared_structures::Input::*;
+use crate::shared_structures::*;
 use crate::shared_structures::{Direction, Game, Input, PlayerStatus, Point, Snake};
+use std::fs::{File, OpenOptions};
 use std::io::{stdout, Read, Stdout, Write};
 use termion::raw::{IntoRawMode, RawTerminal};
 use termion::{async_stdin, clear, color, cursor, AsyncReader};
 
-pub const WIDTH: usize = 60;
-pub const HEIGHT: usize = 20;
 pub const FOOD_CHAR: char = 'Ծ';
+const LOG_FILE: &'static str = "log";
 
 pub trait Drawer {
     fn init() -> Self;
@@ -33,6 +34,7 @@ impl Drawer for Termion {
     fn init() -> Self {
         let stdin = async_stdin();
         let stdout = stdout().into_raw_mode().unwrap();
+        File::create(LOG_FILE).unwrap();
         Termion { stdin, stdout }
     }
 
@@ -57,7 +59,7 @@ impl Drawer for Termion {
 }
 
 impl Termion {
-    fn get_inputs(&mut self) -> Vec<Option<Input>> {
+    pub fn get_inputs(&mut self) -> Vec<Option<Input>> {
         //On lit 10 caractères
         let mut buffer = [0; 10];
         self.stdin.read(&mut buffer).unwrap();
@@ -83,6 +85,7 @@ impl Termion {
                 _ => (),
             }
         }
+        log_in_file(format!("{:?}", v));
         v
     }
 
@@ -259,7 +262,7 @@ impl Termion {
         }
 
         //Player1
-        if game.nb_players > 0 {
+        if game.nb_snakes > 0 {
             write!(
                 self.stdout,
                 "{}{}Score {}: {}{}",
@@ -273,7 +276,7 @@ impl Termion {
         }
 
         //Player2
-        if game.nb_players > 1 {
+        if game.nb_snakes > 1 {
             write!(
                 self.stdout,
                 "{}{}Score {}: {}{}",
@@ -287,7 +290,7 @@ impl Termion {
         }
 
         //Player3
-        if game.nb_players > 2 {
+        if game.nb_snakes > 2 {
             write!(
                 self.stdout,
                 "{}{}Score {}: {}{}",
@@ -301,7 +304,7 @@ impl Termion {
         }
 
         //Player4
-        if game.nb_players > 3 {
+        if game.nb_snakes > 3 {
             write!(
                 self.stdout,
                 "{}{}Score {}: {}{}",
@@ -319,7 +322,7 @@ impl Termion {
             "{}Esc: quit",
             cursor::Goto(
                 WIDTH as u16 + 7,
-                starting_height + 1 + game.nb_players as u16
+                starting_height + 1 + game.nb_snakes as u16
             )
         )
         .unwrap();
@@ -342,5 +345,11 @@ impl Termion {
             Direction::Left => Termion::HEAD_LEFT,
             Direction::Right => Termion::HEAD_RIGHT,
         }
+    }
+}
+
+fn log_in_file(s: String) {
+    if let Ok(mut file) = OpenOptions::new().append(true).open(LOG_FILE) {
+        file.write(s.as_bytes()).unwrap();
     }
 }

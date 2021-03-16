@@ -29,6 +29,10 @@ impl Point {
         let ry = rand::thread_rng().gen_range(2, HEIGHT);
         Point::new(rx as u16, ry as u16)
     }
+
+    pub fn sub(p1: &Point, p2: &Point) -> (i16, i16) {
+        (p1.x as i16 - p2.x as i16, p1.y as i16 - p2.y as i16)
+    }
 }
 
 pub enum TurnOutcome {
@@ -68,6 +72,7 @@ impl Game {
             nb_snakes: nb_snakes,
             bots: bots,
             snakes: snakes,
+            bots_difficulty: BotMovement::ToTheFood,
             food: Point::random(),
             scores: scores,
             speed: SPEED,
@@ -97,6 +102,49 @@ impl Game {
         leavers
     }
 
+    // Algorithme qui fait bouger les bots
+    fn move_snake_bots(&mut self) {
+        for bot in self.bots.iter() {
+            if let Some(bot_index) = self
+                .snakes
+                .iter()
+                .position(|snake| snake.is_player_nb(*bot))
+            {
+                let new_direction = match self.bots_difficulty {
+                    // Si les bots bougent alétoirement
+                    BotMovement::Random => match rand::thread_rng().gen_range(1, 5) {
+                        1 => Direction::Up,
+                        2 => Direction::Right,
+                        3 => Direction::Down,
+                        4 => Direction::Left,
+                        _ => panic!("This should not happen"),
+                    },
+
+                    // Les bots se dirigent vers la pomme
+                    BotMovement::ToTheFood => {
+                        let (x_dist, y_dist) = Point::sub(&self.food, &self.snakes[bot_index].head);
+                        if x_dist.abs() >= y_dist.abs() {
+                            if x_dist < 0 {
+                                Direction::Left
+                            } else {
+                                Direction::Right
+                            }
+                        } else {
+                            if y_dist < 0 {
+                                Direction::Up
+                            } else {
+                                Direction::Down
+                            }
+                        }
+                    }
+                };
+                self.snakes[bot_index].change_direction(new_direction);
+            } else {
+                panic!("Should not happen");
+            }
+        }
+    }
+
     // Si retoune None un joueur a quitté la partir
     // Si on retoune _Some([1])_, le joueur 1 a perdu
     pub fn turn(&mut self, inputs: Vec<Vec<Input>>) -> TurnOutcome {
@@ -104,6 +152,9 @@ impl Game {
 
         // Récupère les touches
         let leavers = self.handle_inputs(inputs);
+
+        // Fais bouger les bots
+        self.move_snake_bots();
 
         // Fais mouvoir les serpents
         for i in 0..self.snakes.len() {
@@ -135,6 +186,7 @@ impl Game {
         // on enlève les serpents qui ont perdu ou quitté
         for l in leavers_losers.iter() {
             self.snakes.retain(|snake| !snake.is_player_nb(*l));
+            self.bots.retain(|bot| *bot != *l);
             if leavers.contains(l) {
                 log!("Serpent {} has left!", l);
                 self.scores[(l - 1) as usize] = PlayerStatus::Leaver;
