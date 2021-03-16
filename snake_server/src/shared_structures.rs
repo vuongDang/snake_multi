@@ -22,6 +22,7 @@ pub struct Game {
     // Ids of snakes controlled by bots
     pub bots: Vec<i32>,
     pub bots_difficulty: BotMovement,
+    pub points_to_win: u32,
 
     pub food: Point,
     pub scores: Vec<PlayerStatus>,

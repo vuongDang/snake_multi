@@ -5,10 +5,11 @@ use rand::Rng;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 
-const SPEED: u64 = 100;
+const SPEED: u64 = 150;
 const POINTS: i32 = 10;
 const LOG_FILE: &'static str = "log";
 const MAX_SNAKE_NB: u32 = 4;
+const POINTS_TO_WIN: u32 = 20;
 
 impl Point {
     pub fn new(x: u16, y: u16) -> Self {
@@ -77,6 +78,7 @@ impl Game {
         }
 
         Ok(Game {
+            points_to_win: POINTS_TO_WIN,
             nb_snakes: nb_snakes,
             nb_snakes_alive: nb_snakes,
             snakes: snakes,
@@ -185,6 +187,18 @@ impl Game {
             if losers.contains(l) {
                 log!("Serpent {} has lost!", l);
                 self.scores[(l - 1) as usize] = PlayerStatus::Loser;
+            }
+        }
+
+        // Si un joueur a atteint le score objectif il gagne
+        for (player, score) in self.scores.iter().enumerate() {
+            match score {
+                PlayerStatus::Player(points) => {
+                    if *points >= self.points_to_win as i32 {
+                        return TurnOutcome::End(Some(player as i32 + 1));
+                    }
+                }
+                _ => (),
             }
         }
 
