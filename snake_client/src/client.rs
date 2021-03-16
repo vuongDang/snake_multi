@@ -1,8 +1,9 @@
 //use crate::game::*;
 //use crate::snake::{Direction, Snake, Point};
-use crate::shared_structures::Input::*;
+use crate::shared_structures::ClientMsg::*;
+use crate::shared_structures::Direction::*;
 use crate::shared_structures::*;
-use crate::shared_structures::{Direction, Game, Input, PlayerStatus, Point, Snake};
+use crate::shared_structures::{Game, PlayerStatus, Point, Snake};
 use std::fs::{File, OpenOptions};
 use std::io::{stdout, Read, Stdout, Write};
 use termion::raw::{IntoRawMode, RawTerminal};
@@ -12,7 +13,7 @@ pub const FOOD_CHAR: char = 'Ծ';
 const LOG_FILE: &'static str = "log";
 
 pub trait Drawer {
-    fn init() -> Self;
+    fn init(nb_players: u32) -> Self;
     fn draw_game(&mut self, game: &Game);
     fn draw_error(&mut self);
     fn draw_end(&mut self, winner: Option<i32>);
@@ -26,22 +27,29 @@ pub trait Drawer {
 //fn get_inputs(&mut self) -> Vec<Option<Input>>;
 
 pub struct Termion {
+    nb_players: u32,
     stdin: AsyncReader,
     stdout: RawTerminal<Stdout>,
 }
 
 impl Drawer for Termion {
-    fn init() -> Self {
+    fn init(nb_players: u32) -> Self {
         let stdin = async_stdin();
         let stdout = stdout().into_raw_mode().unwrap();
         File::create(LOG_FILE).unwrap();
-        Termion { stdin, stdout }
+        Termion {
+            nb_players,
+            stdin,
+            stdout,
+        }
     }
 
     fn draw_game(&mut self, game: &Game) {
         self.draw_field(WIDTH as u16, HEIGHT as u16);
         for snake in game.snakes.iter() {
-            self.draw_snake(snake);
+            if let Some(snake) = snake {
+                self.draw_snake(snake);
+            }
         }
         self.draw_scores(&game);
         self.draw_food(&game.food);
@@ -59,28 +67,28 @@ impl Drawer for Termion {
 }
 
 impl Termion {
-    pub fn get_inputs(&mut self) -> Vec<Option<Input>> {
+    pub fn get_inputs(&mut self) -> Vec<ClientMsg> {
         //On lit 10 caractères
         let mut buffer = [0; 10];
         self.stdin.read(&mut buffer).unwrap();
-        let mut v = vec![None, None];
+        let mut v = vec![SnakeDirection(None); self.nb_players as usize];
         for c in buffer.iter() {
             match c {
                 // Premier serpent
-                b'q' => v[0] = Some(Left),
-                b's' => v[0] = Some(Down),
-                b'z' => v[0] = Some(Up),
-                b'd' => v[0] = Some(Right),
+                b'q' => v[0] = SnakeDirection(Some(Left)),
+                b's' => v[0] = SnakeDirection(Some(Down)),
+                b'z' => v[0] = SnakeDirection(Some(Up)),
+                b'd' => v[0] = SnakeDirection(Some(Right)),
 
                 // Deuxième serpent
-                b'j' => v[1] = Some(Left),
-                b'k' => v[1] = Some(Down),
-                b'i' => v[1] = Some(Up),
-                b'l' => v[1] = Some(Right),
+                b'j' => v[1] = SnakeDirection(Some(Left)),
+                b'k' => v[1] = SnakeDirection(Some(Down)),
+                b'i' => v[1] = SnakeDirection(Some(Up)),
+                b'l' => v[1] = SnakeDirection(Some(Right)),
 
                 // Quitter la partie avec la touch Esc
                 27 => {
-                    return vec![Some(Quit), Some(Quit)];
+                    return vec![Leave; self.nb_players as usize];
                 }
                 _ => (),
             }

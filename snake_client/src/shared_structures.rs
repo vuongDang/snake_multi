@@ -16,10 +16,13 @@ pub enum PlayerStatus {
 pub struct Game {
     // Number of snakes that will be in the game
     pub nb_snakes: i32,
-    // Number of snakes controlled by bots
+    pub nb_snakes_alive: i32,
+    // If None means that the Snake has lost
+    pub snakes: Vec<Option<Snake>>,
+    // Ids of snakes controlled by bots
     pub bots: Vec<i32>,
     pub bots_difficulty: BotMovement,
-    pub snakes: Vec<Snake>,
+
     pub food: Point,
     pub scores: Vec<PlayerStatus>,
     pub speed: u64,
@@ -29,6 +32,7 @@ pub struct Game {
 pub enum BotMovement {
     Random,
     ToTheFood,
+    Survival,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -37,7 +41,7 @@ pub struct Point {
     pub y: u16,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Direction {
     Up,
     Down,
@@ -62,16 +66,8 @@ pub enum ServerMsg {
     Error(String),
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ClientMsg {
-    SnakeDirection(Direction),
+    SnakeDirection(Option<Direction>),
     Leave,
-}
-
-#[derive(Debug)]
-pub enum Input {
-    Left,
-    Right,
-    Up,
-    Down,
-    Quit,
 }
