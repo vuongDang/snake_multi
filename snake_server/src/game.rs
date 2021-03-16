@@ -110,35 +110,14 @@ impl Game {
                 .iter()
                 .position(|snake| snake.is_player_nb(*bot))
             {
-                let new_direction = match self.bots_difficulty {
+                let snake = &mut self.snakes[bot_index];
+                match self.bots_difficulty {
                     // Si les bots bougent alétoirement
-                    BotMovement::Random => match rand::thread_rng().gen_range(1, 5) {
-                        1 => Direction::Up,
-                        2 => Direction::Right,
-                        3 => Direction::Down,
-                        4 => Direction::Left,
-                        _ => panic!("This should not happen"),
-                    },
+                    BotMovement::Random => snake.move_randomly(),
 
                     // Les bots se dirigent vers la pomme
-                    BotMovement::ToTheFood => {
-                        let (x_dist, y_dist) = Point::sub(&self.food, &self.snakes[bot_index].head);
-                        if x_dist.abs() >= y_dist.abs() {
-                            if x_dist < 0 {
-                                Direction::Left
-                            } else {
-                                Direction::Right
-                            }
-                        } else {
-                            if y_dist < 0 {
-                                Direction::Up
-                            } else {
-                                Direction::Down
-                            }
-                        }
-                    }
-                };
-                self.snakes[bot_index].change_direction(new_direction);
+                    BotMovement::ToTheFood => snake.move_to_food(&self.food),
+                }
             } else {
                 panic!("Should not happen");
             }

@@ -37,7 +37,7 @@ pub struct Point {
     pub y: u16,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Direction {
     Up,
     Down,

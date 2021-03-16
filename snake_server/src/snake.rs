@@ -1,13 +1,73 @@
 use crate::shared_structures::{Direction, Point, Snake, HEIGHT, WIDTH};
+use rand::Rng;
 
 impl Snake {
     pub fn change_direction(&mut self, d: Direction) {
-        match (self.direction.clone(), d) {
+        match (&self.direction, d) {
             (Direction::Up, Direction::Down) => (),
             (Direction::Down, Direction::Up) => (),
             (Direction::Left, Direction::Right) => (),
             (Direction::Right, Direction::Left) => (),
             (_, d) => self.direction = d,
+        }
+    }
+
+    pub fn move_randomly(&mut self) {
+        self.direction = match rand::thread_rng().gen_range(1, 5) {
+            1 => Direction::Up,
+            2 => Direction::Right,
+            3 => Direction::Down,
+            4 => Direction::Left,
+            _ => panic!("This should not happen"),
+        };
+    }
+
+    pub fn move_to_food(&mut self, food: &Point) {
+        let (x_dist, y_dist) = Point::sub(food, &self.head);
+        if x_dist.abs() >= y_dist.abs() {
+            if x_dist < 0 {
+                if self.direction != Direction::Right {
+                    self.direction = Direction::Left;
+                } else {
+                    self.move_to_food_y(y_dist);
+                }
+            } else {
+                if self.direction != Direction::Left {
+                    self.direction = Direction::Right;
+                } else {
+                    self.move_to_food_y(y_dist);
+                }
+            }
+        } else {
+            if y_dist < 0 {
+                if self.direction != Direction::Down {
+                    self.direction = Direction::Up;
+                } else {
+                    self.move_to_food_x(x_dist);
+                }
+            } else {
+                if self.direction != Direction::Up {
+                    self.direction = Direction::Down;
+                } else {
+                    self.move_to_food_x(x_dist);
+                }
+            }
+        }
+    }
+
+    pub fn move_to_food_y(&mut self, y_dist: i16) {
+        if y_dist < 0 {
+            self.direction = Direction::Up
+        } else {
+            self.direction = Direction::Up
+        }
+    }
+
+    pub fn move_to_food_x(&mut self, x_dist: i16) {
+        if x_dist < 0 {
+            self.direction = Direction::Left;
+        } else {
+            self.direction = Direction::Right
         }
     }
 
