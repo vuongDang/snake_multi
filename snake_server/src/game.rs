@@ -138,13 +138,20 @@ impl Game {
         // Fais mouvoir les serpents
         for i in 0..self.snakes.len() {
             let snake: &mut Snake = &mut self.snakes[i];
+            let player_index = snake.id as usize - 1;
             let is_gonna_eat = (Point::next_point(&snake.head, &snake.direction)) == self.food;
             snake.step(is_gonna_eat);
+
             if is_gonna_eat {
-                if let PlayerStatus::Player(points) = self.scores[i] {
-                    self.scores[i] = PlayerStatus::Player(POINTS + points);
+                if let PlayerStatus::Player(points) = self.scores[player_index] {
+                    self.scores[player_index] = PlayerStatus::Player(POINTS + points);
                 }
-                has_eaten = true
+                has_eaten = true;
+            }
+
+            // Vérification, TODO remove when tested thoroughly
+            if let PlayerStatus::Player(points) = self.scores[player_index] {
+                assert!((snake.body.len() as i32 - 1) * 10 == points);
             }
         }
 

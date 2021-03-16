@@ -16,7 +16,7 @@ pub enum PlayerStatus {
 pub struct Game {
     // Number of snakes that will be in the game
     pub nb_snakes: i32,
-    // Number of snakes controlled by bots
+    // Ids of snakes controlled by bots
     pub bots: Vec<i32>,
     pub bots_difficulty: BotMovement,
     pub snakes: Vec<Snake>,
