@@ -1,4 +1,5 @@
 use crate::log;
+use crate::shared_structures::ClientMsg::*;
 use crate::shared_structures::*;
 use rand::Rng;
 use std::fs::{File, OpenOptions};
@@ -7,6 +8,7 @@ use std::io::Write;
 const SPEED: u64 = 100;
 const POINTS: i32 = 10;
 const LOG_FILE: &'static str = "log";
+const MAX_SNAKE_NB: u32 = 4;
 
 impl Point {
     pub fn new(x: u16, y: u16) -> Self {
@@ -45,6 +47,11 @@ pub enum TurnOutcome {
 impl Game {
     // Initialise une structure Game
     pub fn init(nb_snakes: i32, nb_bots: i32) -> Result<Self, String> {
+        // Maximum 4 serpents
+        if nb_snakes > MAX_SNAKE_NB as i32 {
+            return Err(format!("Maximum {} snakes", MAX_SNAKE_NB));
+        }
+
         // Il doit y avoir au moins 2 serpents
         if nb_snakes < 2 {
             return Err(String::from("At least 2 snakes is needed"));
@@ -54,6 +61,7 @@ impl Game {
         if nb_snakes <= nb_bots {
             return Err(String::from("At least 1 human player is needed"));
         }
+
         // Efface le contenu du fichier de log
         File::create(LOG_FILE).unwrap();
         let mut snakes = vec![];
@@ -64,36 +72,34 @@ impl Game {
             if player_nb > (nb_snakes - nb_bots) {
                 bots.push(player_nb);
             }
-            snakes.push(Snake::init(nb_snakes, player_nb));
+            snakes.push(Some(Snake::init(nb_snakes, player_nb)));
             scores.push(PlayerStatus::Player(0));
         }
 
         Ok(Game {
             nb_snakes: nb_snakes,
-            bots: bots,
+            nb_snakes_alive: nb_snakes,
             snakes: snakes,
-            bots_difficulty: BotMovement::ToTheFood,
             food: Point::random(),
+            bots: bots,
+            bots_difficulty: BotMovement::ToTheFood,
             scores: scores,
             speed: SPEED,
         })
     }
 
     // Change la direction des serpents selon les commandes reçues
-    // Si retourne [1,2)_ les joueurs 1 et 2 ont quitté
-    fn handle_inputs(&mut self, inputs: Vec<Vec<Input>>) -> Vec<i32> {
+    // Si retourne [1,2] les joueurs 1 et 2 ont quitté
+    fn handle_inputs(&mut self, inputs: Vec<ClientMsg>) -> Vec<i32> {
         let mut leavers = vec![];
-        for player in 0..inputs.len() {
-            //Pour chaque joueur
-            for input in inputs[player].iter() {
-                //Pour chaque commande d'un joueur
+        //Pour chaque commande d'un joueur
+        for (player, input) in inputs.into_iter().enumerate() {
+            if let Some(snake) = &mut self.snakes[player] {
                 match input {
-                    Input::Up => self.snakes[player].change_direction(Direction::Up),
-                    Input::Right => self.snakes[player].change_direction(Direction::Right),
-                    Input::Left => self.snakes[player].change_direction(Direction::Left),
-                    Input::Down => self.snakes[player].change_direction(Direction::Down),
-                    Input::Quit => {
-                        leavers.push(player as i32);
+                    SnakeDirection(Some(d)) => snake.change_direction(d),
+                    SnakeDirection(None) => (),
+                    Leave => {
+                        leavers.push(1 + player as i32);
                         break;
                     }
                 }
@@ -105,28 +111,24 @@ impl Game {
     // Algorithme qui fait bouger les bots
     fn move_snake_bots(&mut self) {
         for bot in self.bots.iter() {
-            if let Some(bot_index) = self
-                .snakes
-                .iter()
-                .position(|snake| snake.is_player_nb(*bot))
-            {
-                let snake = &mut self.snakes[bot_index];
+            if let Some(snake) = &mut self.snakes[*bot as usize - 1] {
                 match self.bots_difficulty {
                     // Si les bots bougent alétoirement
                     BotMovement::Random => snake.move_randomly(),
 
                     // Les bots se dirigent vers la pomme
                     BotMovement::ToTheFood => snake.move_to_food(&self.food),
+
+                    // Bougent pour survivre
+                    BotMovement::Survival => {}
                 }
-            } else {
-                panic!("Should not happen");
             }
         }
     }
 
     // Si retoune None un joueur a quitté la partir
     // Si on retoune _Some([1])_, le joueur 1 a perdu
-    pub fn turn(&mut self, inputs: Vec<Vec<Input>>) -> TurnOutcome {
+    pub fn turn(&mut self, inputs: Vec<ClientMsg>) -> TurnOutcome {
         let mut has_eaten = false;
 
         // Récupère les touches
@@ -136,22 +138,22 @@ impl Game {
         self.move_snake_bots();
 
         // Fais mouvoir les serpents
-        for i in 0..self.snakes.len() {
-            let snake: &mut Snake = &mut self.snakes[i];
-            let player_index = snake.id as usize - 1;
-            let is_gonna_eat = (Point::next_point(&snake.head, &snake.direction)) == self.food;
-            snake.step(is_gonna_eat);
+        for (i, snake) in self.snakes.iter_mut().enumerate() {
+            if let Some(snake) = snake {
+                let is_gonna_eat = (Point::next_point(&snake.head, &snake.direction)) == self.food;
+                snake.step(is_gonna_eat);
 
-            if is_gonna_eat {
-                if let PlayerStatus::Player(points) = self.scores[player_index] {
-                    self.scores[player_index] = PlayerStatus::Player(POINTS + points);
+                if is_gonna_eat {
+                    if let PlayerStatus::Player(points) = self.scores[i] {
+                        self.scores[i] = PlayerStatus::Player(POINTS + points);
+                    }
+                    has_eaten = true;
                 }
-                has_eaten = true;
-            }
 
-            // Vérification, TODO remove when tested thoroughly
-            if let PlayerStatus::Player(points) = self.scores[player_index] {
-                assert!((snake.body.len() as i32 - 1) * 10 == points);
+                // Vérification
+                if let PlayerStatus::Player(points) = self.scores[i] {
+                    assert!((snake.body.len() as i32 - 1) * 10 == points);
+                }
             }
         }
 
@@ -170,9 +172,11 @@ impl Game {
         leavers_losers.dedup();
 
         // on enlève les serpents qui ont perdu ou quitté
+        self.nb_snakes_alive -= leavers_losers.len() as i32;
         for l in leavers_losers.iter() {
-            self.snakes.retain(|snake| !snake.is_player_nb(*l));
-            self.bots.retain(|bot| *bot != *l);
+            self.snakes[(l - 1) as usize] = None;
+            //self.bots.retain(|bot| *bot != *l);
+
             if leavers.contains(l) {
                 log!("Serpent {} has left!", l);
                 self.scores[(l - 1) as usize] = PlayerStatus::Leaver;
@@ -185,9 +189,15 @@ impl Game {
         }
 
         // Retourne les perdants
-        match self.snakes.len() {
+        match self.nb_snakes_alive {
             0 => TurnOutcome::End(None),
-            1 => TurnOutcome::End(Some(self.snakes[0].id)),
+            1 => {
+                let winner: Option<&Option<Snake>> =
+                    self.snakes.iter().find(|snake| snake.is_some());
+                let winner: &Option<Snake> = winner.unwrap();
+                let winner: &Snake = winner.as_ref().unwrap();
+                TurnOutcome::End(Some(winner.id))
+            }
             _ => TurnOutcome::Playing(losers),
         }
     }
@@ -195,13 +205,16 @@ impl Game {
     // Check for collisions and return array of losing players
     pub fn check_collisions(&mut self) -> Vec<i32> {
         let mut losers = vec![];
-        log_in_file(format!(
-            "S1: {:?}, S2: {:?}\n",
-            self.snakes[0].head, self.snakes[1].head
-        ));
+        let mut snakes_alive: Vec<&Snake> = vec![];
         for snake in self.snakes.iter() {
+            if let Some(snake) = snake {
+                snakes_alive.push(snake);
+            }
+        }
+
+        for snake in snakes_alive.iter() {
             // Teste les collisions entre serpents
-            for other_snake in self.snakes.iter() {
+            for other_snake in snakes_alive.iter() {
                 // Collisions tête - corps
                 if other_snake.is_in_body(&snake.head) {
                     log_in_file("Is in body!\n".to_owned());
@@ -215,10 +228,10 @@ impl Game {
                 }
             }
             // Teste les collisions avec les bordures
-            if snake.head.x == 0
-                || snake.head.y == 0
-                || snake.head.x == (WIDTH as u16)
-                || snake.head.y == (HEIGHT as u16)
+            if snake.head.x <= 1
+                || snake.head.y <= 1
+                || snake.head.x >= (WIDTH as u16)
+                || snake.head.y >= (HEIGHT as u16)
             {
                 losers.push(snake.id);
             }

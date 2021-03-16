@@ -9,6 +9,7 @@ pub mod game;
 pub mod shared_structures;
 pub mod snake;
 
+// Default number of snakes and bots
 const NB_SNAKES: i32 = 4;
 const NB_BOT: i32 = 3;
 // Une macro pour afficher des messages de log de la forme
@@ -86,8 +87,10 @@ fn play(mut game: Game, mut players: Vec<TcpStream>) {
     loop {
         sleep(Duration::from_millis(game.speed));
 
+        let players_inputs = listen_to_clients(&mut players);
+
         // on fait avancer le jeu d'un tour
-        let turn_outcome = game.turn(vec![vec![]]);
+        let turn_outcome = game.turn(players_inputs);
 
         // on check si la partie est finie
         match turn_outcome {
@@ -113,4 +116,21 @@ fn send_msg_to_clients(msg: ServerMsg, clients: &mut Vec<TcpStream>) {
         stream.write(json.as_bytes()).unwrap();
         stream.flush().unwrap();
     }
+}
+
+fn listen_to_clients(clients: &mut Vec<TcpStream>) -> Vec<ClientMsg> {
+    let mut v = vec![];
+    for (i, stream) in clients.iter_mut().enumerate() {
+        let mut buffer = [0; 1024];
+        stream.read(&mut buffer).unwrap();
+        let json = String::from_utf8_lossy(&buffer);
+        let json = &json.trim_end_matches(char::from(0));
+        if let Ok(json) = serde_json::from_str(&json) {
+            v.push(json);
+        } else {
+            error!("Player {} has sent erronous data", i + 1);
+            v.push(ClientMsg::Leave);
+        }
+    }
+    v
 }
