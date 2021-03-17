@@ -9,7 +9,7 @@ const SPEED: u64 = 150;
 const POINTS: i32 = 10;
 const LOG_FILE: &'static str = "log";
 const MAX_SNAKE_NB: u32 = 4;
-const POINTS_TO_WIN: u32 = 20;
+const POINTS_TO_WIN: u32 = 50;
 
 impl Point {
     pub fn new(x: u16, y: u16) -> Self {
@@ -40,16 +40,16 @@ impl Point {
 
 pub enum TurnOutcome {
     // La partie continue, le vecteur contient les perdants potentiels du tour
-    Playing(Vec<i32>),
+    Playing(Vec<u32>),
     // La partie est terminée, l'option contient le gagnant ou None pour une égalité
-    End(Option<i32>),
+    End(Option<u32>),
 }
 
 impl Game {
     // Initialise une structure Game
-    pub fn init(nb_snakes: i32, nb_bots: i32) -> Result<Self, String> {
+    pub fn init(nb_snakes: u32, nb_bots: u32) -> Result<Self, String> {
         // Maximum 4 serpents
-        if nb_snakes > MAX_SNAKE_NB as i32 {
+        if nb_snakes > MAX_SNAKE_NB {
             return Err(format!("Maximum {} snakes", MAX_SNAKE_NB));
         }
 
@@ -92,20 +92,34 @@ impl Game {
 
     // Change la direction des serpents selon les commandes reçues
     // Si retourne [1,2] les joueurs 1 et 2 ont quitté
-    fn handle_inputs(&mut self, inputs: Vec<ClientMsg>) -> Vec<i32> {
+    fn handle_inputs(&mut self, inputs: Vec<ClientMsg>) -> Vec<u32> {
         let mut leavers = vec![];
+        let mut player: u32 = 0;
         //Pour chaque commande d'un joueur
-        for (player, input) in inputs.into_iter().enumerate() {
-            if let Some(snake) = &mut self.snakes[player] {
-                match input {
-                    SnakeDirection(Some(d)) => snake.change_direction(d),
-                    SnakeDirection(None) => (),
-                    Leave => {
-                        leavers.push(1 + player as i32);
-                        break;
+        for input in inputs.into_iter() {
+            match input {
+                SnakeDirection(v) => {
+                    for command in v.into_iter() {
+                        if let Some(snake) = &mut self.snakes[player as usize] {
+                            match command {
+                                None => (),
+                                Some(d) => snake.change_direction(d),
+                            }
+                            player += 1;
+                        }
                     }
                 }
+                Leave(nb_players) => {
+                    for _ in 0..nb_players {
+                        leavers.push(1 + player);
+                        player += 1;
+                    }
+                }
+                Init(_) => {
+                    panic!("Client should not have sent an Init message at this stage");
+                }
             }
+            player += 1;
         }
         leavers
     }
@@ -167,14 +181,14 @@ impl Game {
         // _losers_ contient les serpents perdants
         let losers = self.check_collisions();
 
-        let mut leavers_losers: Vec<i32> = vec![];
+        let mut leavers_losers: Vec<u32> = vec![];
         leavers_losers.extend(&losers);
         leavers_losers.extend(&leavers);
         leavers_losers.sort();
         leavers_losers.dedup();
 
         // on enlève les serpents qui ont perdu ou quitté
-        self.nb_snakes_alive -= leavers_losers.len() as i32;
+        self.nb_snakes_alive -= leavers_losers.len() as u32;
         for l in leavers_losers.iter() {
             self.snakes[(l - 1) as usize] = None;
             //self.bots.retain(|bot| *bot != *l);
@@ -195,7 +209,7 @@ impl Game {
             match score {
                 PlayerStatus::Player(points) => {
                     if *points >= self.points_to_win as i32 {
-                        return TurnOutcome::End(Some(player as i32 + 1));
+                        return TurnOutcome::End(Some(player as u32 + 1));
                     }
                 }
                 _ => (),
@@ -217,7 +231,7 @@ impl Game {
     }
 
     // Check for collisions and return array of losing players
-    pub fn check_collisions(&mut self) -> Vec<i32> {
+    pub fn check_collisions(&mut self) -> Vec<u32> {
         let mut losers = vec![];
         let mut snakes_alive: Vec<&Snake> = vec![];
         for snake in self.snakes.iter() {

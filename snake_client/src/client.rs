@@ -4,27 +4,21 @@ use crate::shared_structures::ClientMsg::*;
 use crate::shared_structures::Direction::*;
 use crate::shared_structures::*;
 use crate::shared_structures::{Game, PlayerStatus, Point, Snake};
-use std::fs::{File, OpenOptions};
+use crate::{log_in_file, LOG_FILE};
+use std::fs::File;
 use std::io::{stdout, Read, Stdout, Write};
 use termion::raw::{IntoRawMode, RawTerminal};
 use termion::{async_stdin, clear, color, cursor, AsyncReader};
 
 pub const FOOD_CHAR: char = 'Ծ';
-const LOG_FILE: &'static str = "log";
+pub const MAX_PLAYERS_ON_1_TERMINAL: u32 = 2;
 
 pub trait Drawer {
     fn init(nb_players: u32) -> Self;
     fn draw_game(&mut self, game: &Game);
     fn draw_error(&mut self);
-    fn draw_end(&mut self, winner: Option<i32>);
+    fn draw_end(&mut self, winner: Option<u32>);
 }
-
-//fn draw_field(&mut self, width: u16, height: u16);
-//fn draw_snake(&mut self, snake: &Snake);
-//fn draw_food(&mut self, food: &Point);
-//fn draw_scores(&mut self, scores: &Vec<i32>);
-//fn draw_results(&mut self, losers: Vec<i32>, scores: &Vec<i32>);
-//fn get_inputs(&mut self) -> Vec<Option<Input>>;
 
 pub struct Termion {
     nb_players: u32,
@@ -53,9 +47,11 @@ impl Drawer for Termion {
         }
         self.draw_scores(&game);
         self.draw_food(&game.food);
+        self.cursor_at_bottom();
     }
 
-    fn draw_end(&mut self, winner: Option<i32>) {
+    // Met le curseur en bas
+    fn draw_end(&mut self, winner: Option<u32>) {
         match winner {
             None => self.draw_draw(),
             Some(winner) => self.draw_winner(winner),
@@ -67,34 +63,34 @@ impl Drawer for Termion {
 }
 
 impl Termion {
-    pub fn get_inputs(&mut self) -> Vec<ClientMsg> {
+    pub fn get_inputs(&mut self) -> ClientMsg {
         //On lit 10 caractères
         let mut buffer = [0; 10];
         self.stdin.read(&mut buffer).unwrap();
-        let mut v = vec![SnakeDirection(None); self.nb_players as usize];
+        let mut v = vec![None; self.nb_players as usize];
         for c in buffer.iter() {
             match c {
                 // Premier serpent
-                b'q' => v[0] = SnakeDirection(Some(Left)),
-                b's' => v[0] = SnakeDirection(Some(Down)),
-                b'z' => v[0] = SnakeDirection(Some(Up)),
-                b'd' => v[0] = SnakeDirection(Some(Right)),
+                b'q' => v[0] = Some(Left),
+                b's' => v[0] = Some(Down),
+                b'z' => v[0] = Some(Up),
+                b'd' => v[0] = Some(Right),
 
                 // Deuxième serpent
-                b'j' => v[1] = SnakeDirection(Some(Left)),
-                b'k' => v[1] = SnakeDirection(Some(Down)),
-                b'i' => v[1] = SnakeDirection(Some(Up)),
-                b'l' => v[1] = SnakeDirection(Some(Right)),
+                b'j' => v[1] = Some(Left),
+                b'k' => v[1] = Some(Down),
+                b'i' => v[1] = Some(Up),
+                b'l' => v[1] = Some(Right),
 
                 // Quitter la partie avec la touch Esc
                 27 => {
-                    return vec![Leave; self.nb_players as usize];
+                    return Leave(self.nb_players);
                 }
                 _ => (),
             }
         }
-        log_in_file(format!("{:?}", v));
-        v
+        log_in_file(format!("{:?}\n", v));
+        SnakeDirection(v)
     }
 
     fn draw_field(&mut self, width: u16, height: u16) {
@@ -233,7 +229,7 @@ impl Termion {
         self.stdout.flush().unwrap();
     }
 
-    fn draw_winner(&mut self, winner: i32) {
+    fn draw_winner(&mut self, winner: u32) {
         let w: u16 = WIDTH as u16;
         let h: u16 = HEIGHT as u16;
         write!(
@@ -353,11 +349,5 @@ impl Termion {
             Direction::Left => Termion::HEAD_LEFT,
             Direction::Right => Termion::HEAD_RIGHT,
         }
-    }
-}
-
-fn log_in_file(s: String) {
-    if let Ok(mut file) = OpenOptions::new().append(true).open(LOG_FILE) {
-        file.write(s.as_bytes()).unwrap();
     }
 }

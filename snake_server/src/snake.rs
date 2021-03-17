@@ -91,11 +91,11 @@ impl Snake {
         false
     }
 
-    pub fn is_player_nb(&self, id: i32) -> bool {
+    pub fn is_player_nb(&self, id: u32) -> bool {
         self.id == id
     }
 
-    pub fn init(nb_players: i32, player_nb: i32) -> Self {
+    pub fn init(nb_players: u32, player_nb: u32) -> Self {
         let x;
         let y;
         let direction;

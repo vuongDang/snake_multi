@@ -15,13 +15,14 @@ pub enum PlayerStatus {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Game {
     // Number of snakes that will be in the game
-    pub nb_snakes: i32,
-    pub nb_snakes_alive: i32,
+    pub nb_snakes: u32,
+    pub nb_snakes_alive: u32,
     // If None means that the Snake has lost
     pub snakes: Vec<Option<Snake>>,
     // Ids of snakes controlled by bots
-    pub bots: Vec<i32>,
+    pub bots: Vec<u32>,
     pub bots_difficulty: BotMovement,
+    pub points_to_win: u32,
 
     pub food: Point,
     pub scores: Vec<PlayerStatus>,
@@ -52,7 +53,7 @@ pub enum Direction {
 // Structure du serpent
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Snake {
-    pub id: i32,
+    pub id: u32,
     pub head: Point,
     // L'index de la queue est la valeur 0
     pub body: Vec<Point>,
@@ -61,13 +62,15 @@ pub struct Snake {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ServerMsg {
-    Playing(Game, Vec<i32>),
-    End(Option<i32>),
+    Playing(Game, Vec<u32>),
+    End(Option<u32>),
     Error(String),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ClientMsg {
-    SnakeDirection(Option<Direction>),
-    Leave,
+    // Dis au serveur le nombre de joueurs sur le client
+    Init(u32),
+    SnakeDirection(Vec<Option<Direction>>),
+    Leave(u32),
 }
