@@ -62,6 +62,7 @@ pub struct Snake {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ServerMsg {
+    InitAck(Vec<u32>),
     Playing(Game, Vec<u32>),
     End(Option<u32>),
     Error(String),

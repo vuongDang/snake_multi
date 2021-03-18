@@ -66,9 +66,12 @@ fn main() {
                 );
                 sock.shutdown(Shutdown::Both).unwrap();
             } else {
+                // Attribue les numéros de serpents aux joueurs
                 let players_numbers: Vec<u32> =
                     (players_pending + 1..players_pending + 1 + nb_players).collect();
                 players_pending = players_pending + nb_players;
+                // Envoie les numéros des serpents aux joueurs
+                send_msg_to_client(&ServerMsg::InitAck(players_numbers.clone()), &mut sock);
                 log!("New connection from {}", addr);
                 clients.push((players_numbers, sock));
             }

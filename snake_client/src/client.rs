@@ -12,9 +12,13 @@ use termion::{async_stdin, clear, color, cursor, AsyncReader};
 
 pub const FOOD_CHAR: char = 'Ծ';
 pub const MAX_PLAYERS_ON_1_TERMINAL: u32 = 2;
+const MARGIN_AFTER_FIELD: u16 = 4;
+const MARGIN_TOP: u16 = 1;
+const PLAYER_1_CONTROLS: [u8; 4] = [b'q', b's', b'd', b'z'];
+const PLAYER_2_CONTROLS: [u8; 4] = [b'j', b'i', b'k', b'l'];
 
 pub trait Drawer {
-    fn init(nb_players: u32) -> Self;
+    fn init(nb_players: u32, serpents: Vec<u32>) -> Self;
     fn draw_game(&mut self, game: &Game);
     fn draw_error(&mut self);
     fn draw_end(&mut self, winner: Option<u32>);
@@ -22,17 +26,19 @@ pub trait Drawer {
 
 pub struct Termion {
     nb_players: u32,
+    snakes_nb: Vec<u32>,
     stdin: AsyncReader,
     stdout: RawTerminal<Stdout>,
 }
 
 impl Drawer for Termion {
-    fn init(nb_players: u32) -> Self {
+    fn init(nb_players: u32, serpents: Vec<u32>) -> Self {
         let stdin = async_stdin();
         let stdout = stdout().into_raw_mode().unwrap();
         File::create(LOG_FILE).unwrap();
         Termion {
             nb_players,
+            snakes_nb: serpents,
             stdin,
             stdout,
         }
@@ -45,8 +51,9 @@ impl Drawer for Termion {
                 self.draw_snake(snake);
             }
         }
-        self.draw_scores(&game);
         self.draw_food(&game.food);
+        let current_y = self.draw_scores(&game);
+        let _current_y = self.draw_instructions(current_y, game.points_to_win);
         self.cursor_at_bottom();
     }
 
@@ -91,6 +98,70 @@ impl Termion {
         }
         log_in_file(format!("{:?}\n", v));
         SnakeDirection(v)
+    }
+
+    fn draw_instructions(&mut self, mut current_y: u16, points_to_win: u32) -> u16 {
+        current_y += 2;
+        write!(
+            self.stdout,
+            "{}#How to win:",
+            cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y)
+        )
+        .unwrap();
+        current_y += 1;
+        write!(
+            self.stdout,
+            "{}- Last survivor",
+            cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y)
+        )
+        .unwrap();
+        current_y += 1;
+        write!(
+            self.stdout,
+            "{}- First to reach {}",
+            cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
+            points_to_win
+        )
+        .unwrap();
+
+        current_y += 2;
+        write!(
+            self.stdout,
+            "{}# Controls",
+            cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y)
+        )
+        .unwrap();
+        current_y += 1;
+        write!(
+            self.stdout,
+            "{}Quit: \"Esc\"",
+            cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y)
+        )
+        .unwrap();
+        current_y += 1;
+        write!(
+            self.stdout,
+            "{}Player 1: {:?}",
+            cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
+            PLAYER_1_CONTROLS
+                .iter()
+                .fold(String::from(""), |acc, c| format!("{}{}", acc, *c as char))
+        )
+        .unwrap();
+
+        current_y += 1;
+        write!(
+            self.stdout,
+            "{}Player 2: {:?}",
+            cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
+            PLAYER_2_CONTROLS
+                .iter()
+                .fold(String::from(""), |acc, c| format!("{}{}", acc, *c as char))
+        )
+        .unwrap();
+
+        self.stdout.flush().unwrap();
+        current_y
     }
 
     fn draw_field(&mut self, width: u16, height: u16) {
@@ -254,8 +325,8 @@ impl Termion {
         self.stdout.flush().unwrap();
     }
 
-    fn draw_scores(&mut self, game: &Game) {
-        let starting_height = 4;
+    fn draw_scores(&mut self, game: &Game) -> u16 {
+        let mut current_y = MARGIN_TOP;
 
         fn score_msg(status: &PlayerStatus) -> String {
             match status {
@@ -265,12 +336,25 @@ impl Termion {
             }
         }
 
+        for snake in self.snakes_nb.iter() {
+            current_y += 1;
+            write!(
+                self.stdout,
+                "{}You are Player {}",
+                cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
+                snake
+            )
+            .unwrap();
+        }
+        current_y += 1;
+
         //Player1
+        current_y += 1;
         if game.nb_snakes > 0 {
             write!(
                 self.stdout,
                 "{}{}Score {}: {}{}",
-                cursor::Goto(WIDTH as u16 + 7, starting_height + 1 as u16),
+                cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
                 color::Fg(color::Red),
                 1,
                 score_msg(&game.scores[0]),
@@ -280,11 +364,12 @@ impl Termion {
         }
 
         //Player2
+        current_y += 1;
         if game.nb_snakes > 1 {
             write!(
                 self.stdout,
                 "{}{}Score {}: {}{}",
-                cursor::Goto(WIDTH as u16 + 7, starting_height + 2 as u16),
+                cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
                 color::Fg(color::Blue),
                 2,
                 score_msg(&game.scores[1]),
@@ -294,11 +379,12 @@ impl Termion {
         }
 
         //Player3
+        current_y += 1;
         if game.nb_snakes > 2 {
             write!(
                 self.stdout,
                 "{}{}Score {}: {}{}",
-                cursor::Goto(WIDTH as u16 + 7, starting_height + 3 as u16),
+                cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
                 color::Fg(color::Green),
                 3,
                 score_msg(&game.scores[2]),
@@ -308,11 +394,12 @@ impl Termion {
         }
 
         //Player4
+        current_y += 1;
         if game.nb_snakes > 3 {
             write!(
                 self.stdout,
                 "{}{}Score {}: {}{}",
-                cursor::Goto(WIDTH as u16 + 7, starting_height + 4 as u16),
+                cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
                 color::Fg(color::Yellow),
                 4,
                 score_msg(&game.scores[3]),
@@ -321,16 +408,8 @@ impl Termion {
             .unwrap();
         }
 
-        write!(
-            self.stdout,
-            "{}Esc: quit",
-            cursor::Goto(
-                WIDTH as u16 + 7,
-                starting_height + 1 + game.nb_snakes as u16
-            )
-        )
-        .unwrap();
         self.stdout.flush().unwrap();
+        current_y
     }
 }
 

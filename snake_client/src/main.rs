@@ -20,22 +20,29 @@ fn main() {
             // Dis au serveur le nombre de joueurs sur ce client
             send_msg_to_server(ClientMsg::Init(nb_players), &mut stream);
 
-            let mut client: Termion = Termion::init(nb_players);
+            let serpents: Vec<u32>;
+            match listen_server(&mut stream) {
+                Ok(ServerMsg::InitAck(serpents_nb)) => serpents = serpents_nb,
+                Ok(ServerMsg::Error(msg)) => error_msg_from_server(None, msg),
+                _ => {
+                    println!("Wrong message from server");
+                    return;
+                }
+            }
+
+            let mut client: Termion = Termion::init(nb_players, serpents);
             loop {
                 // Reçoit les messages du serveur
                 match listen_server(&mut stream) {
                     Ok(msg) => match msg {
-                        Error(e) => {
-                            drop(client);
-                            println!("[SERVER ERROR] {}", e);
-                            return;
-                        }
+                        Error(e) => error_msg_from_server(Some(client), e),
                         Playing(game, _) => client.draw_game(&game),
                         //End(winner) => client.draw_end(winner),
                         End(winner) => {
                             client.draw_end(winner);
                             break;
                         }
+                        _ => panic!("Should not happen"),
                     },
                     Err(e) => {
                         drop(client);
@@ -84,6 +91,14 @@ fn send_msg_to_server(msg: ClientMsg, stream: &mut TcpStream) {
     let json = serde_json::to_string(&msg).unwrap();
     stream.write(json.as_bytes()).unwrap();
     stream.flush().unwrap()
+}
+
+fn error_msg_from_server(client: Option<Termion>, error_msg: String) -> ! {
+    if let Some(client) = client {
+        drop(client);
+    }
+    println!("[SERVER ERROR] {}", error_msg);
+    std::process::exit(1)
 }
 
 fn log_in_file(s: String) {
