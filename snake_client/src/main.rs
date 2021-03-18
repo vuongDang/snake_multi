@@ -80,7 +80,7 @@ fn get_nb_of_players() -> Result<u32, String> {
 
 fn listen_server(stream: &mut TcpStream) -> Result<ServerMsg, serde_json::error::Error> {
     let mut buffer = [0; 1024];
-    stream.read(&mut buffer).unwrap();
+    stream.read(&mut buffer).expect("Disconnected from server");
     let json = String::from_utf8_lossy(&buffer);
     let json = &json.trim_end_matches(char::from(0));
     //println!("Receiving game from server:\n {}", json);

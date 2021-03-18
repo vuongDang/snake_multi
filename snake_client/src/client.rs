@@ -88,10 +88,26 @@ impl Termion {
                 b'd' => v[0] = Some(Right),
 
                 // Deuxième serpent
-                b'j' => v[1] = Some(Left),
-                b'k' => v[1] = Some(Down),
-                b'i' => v[1] = Some(Up),
-                b'l' => v[1] = Some(Right),
+                b'j' => {
+                    if self.nb_players > 1 {
+                        v[1] = Some(Left)
+                    }
+                }
+                b'k' => {
+                    if self.nb_players > 1 {
+                        v[1] = Some(Down)
+                    }
+                }
+                b'i' => {
+                    if self.nb_players > 1 {
+                        v[1] = Some(Up)
+                    }
+                }
+                b'l' => {
+                    if self.nb_players > 1 {
+                        v[1] = Some(Right)
+                    }
+                }
 
                 // Quitter la partie avec la touch Esc
                 27 => {
