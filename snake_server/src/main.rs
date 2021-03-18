@@ -50,30 +50,34 @@ fn main() {
     );
 
     // Store every client connected with the players numbers associated
-    let mut clients: Vec<(Vec<u32>, TcpStream)> = vec![];
+    let mut clients: Vec<(Vec<u32>, Option<TcpStream>)> = vec![];
     let mut players_pending: u32 = 0;
     log!("Server waiting for connection");
     while players_pending < nb_humans {
         let (mut sock, addr) = listener.accept().expect("Connection failed");
         // On demande un message "Init" aux clients
-        if let ClientMsg::Init(nb_players) = listen_to_client((&mut vec![], &mut sock)) {
+        if let ClientMsg::Init(nb_players) = listen_to_client((&mut vec![], Some(&mut sock))) {
             // Trop de joueurs
             if players_pending as u32 + nb_players > nb_humans as u32 {
                 log!("Client {} has too many players for this game", addr);
-                send_msg_to_client(
+                if let Ok(_) = send_msg_to_client(
                     &ServerMsg::Error(format!("Too many players for this game")),
                     &mut sock,
-                );
-                sock.shutdown(Shutdown::Both).unwrap();
+                ) {
+                    sock.shutdown(Shutdown::Both).unwrap();
+                }
             } else {
                 // Attribue les numéros de serpents aux joueurs
                 let players_numbers: Vec<u32> =
                     (players_pending + 1..players_pending + 1 + nb_players).collect();
                 players_pending = players_pending + nb_players;
                 // Envoie les numéros des serpents aux joueurs
-                send_msg_to_client(&ServerMsg::InitAck(players_numbers.clone()), &mut sock);
-                log!("New connection from {}", addr);
-                clients.push((players_numbers, sock));
+                if let Ok(_) =
+                    send_msg_to_client(&ServerMsg::InitAck(players_numbers.clone()), &mut sock)
+                {
+                    log!("New connection from {}", addr);
+                    clients.push((players_numbers, Some(sock)));
+                }
             }
         } else {
             log!("Client {} did not send its number of players", addr);
@@ -105,7 +109,7 @@ fn setup_game() -> Result<Game, String> {
 }
 
 // Lance une partie de Snake
-fn play(mut game: Game, mut players: Vec<(Vec<u32>, TcpStream)>) {
+fn play(mut game: Game, mut players: Vec<(Vec<u32>, Option<TcpStream>)>) {
     // TODO we should not clone
     send_msg_to_clients(ServerMsg::Playing(game.clone(), vec![]), &mut players);
     loop {
@@ -132,43 +136,54 @@ fn play(mut game: Game, mut players: Vec<(Vec<u32>, TcpStream)>) {
 }
 
 // Envoie un message aux différents clients
-fn send_msg_to_clients(msg: ServerMsg, clients: &mut Vec<(Vec<u32>, TcpStream)>) {
+fn send_msg_to_clients(msg: ServerMsg, clients: &mut Vec<(Vec<u32>, Option<TcpStream>)>) {
     // For debugging purpose
     //log!("Sending message to clients:\n {:?}", msg);
-    for (_, stream) in clients.iter_mut() {
-        send_msg_to_client(&msg, stream);
+    for (_, opt_stream) in clients.iter_mut() {
+        if let Some(stream) = opt_stream {
+            match send_msg_to_client(&msg, stream) {
+                Ok(_) => stream.flush().unwrap(),
+                Err(e) => match e.kind() {
+                    std::io::ErrorKind::BrokenPipe => {
+                        *opt_stream = None;
+                    }
+                    _ => panic!("No sé que pasa"),
+                },
+            };
+        }
     }
 }
 
-fn send_msg_to_client(msg: &ServerMsg, client: &mut TcpStream) {
+fn send_msg_to_client(msg: &ServerMsg, client: &mut TcpStream) -> Result<usize, std::io::Error> {
     let json = serde_json::to_string(msg).unwrap();
-    client.write(json.as_bytes()).unwrap();
-    client.flush().unwrap();
+    client.write(json.as_bytes())
 }
 
-fn listen_to_clients(clients: &mut Vec<(Vec<u32>, TcpStream)>) -> Vec<ClientMsg> {
+fn listen_to_clients(clients: &mut Vec<(Vec<u32>, Option<TcpStream>)>) -> Vec<ClientMsg> {
     let mut v = vec![];
     for (players_nb, stream) in clients.iter_mut() {
-        let json = listen_to_client((players_nb, stream));
+        let json = listen_to_client((players_nb, stream.as_mut()));
         v.push(json);
     }
     v
 }
 
-fn listen_to_client(client: (&mut Vec<u32>, &mut TcpStream)) -> ClientMsg {
+fn listen_to_client(client: (&mut Vec<u32>, Option<&mut TcpStream>)) -> ClientMsg {
     let mut buffer = [0; 1024];
     let stream = client.1;
-    stream.read(&mut buffer).unwrap();
-    let json = String::from_utf8_lossy(&buffer);
-    let json = &json.trim_end_matches(char::from(0));
-    if let Ok(json) = serde_json::from_str(&json) {
-        json
-    } else {
-        if let Ok(addr) = stream.peer_addr() {
-            error!("Client {} has sent erronous data", addr);
+    if let Some(stream) = stream {
+        stream.read(&mut buffer).unwrap();
+        let json = String::from_utf8_lossy(&buffer);
+        let json = &json.trim_end_matches(char::from(0));
+        if let Ok(json) = serde_json::from_str(&json) {
+            return json;
         } else {
-            error!("Client has sent erronous data");
+            if let Ok(addr) = stream.peer_addr() {
+                error!("Client {} has sent erronous data", addr);
+            } else {
+                error!("Client has sent erronous data");
+            }
         }
-        ClientMsg::Leave(client.0.len() as u32)
     }
+    ClientMsg::Leave(client.0.len() as u32)
 }

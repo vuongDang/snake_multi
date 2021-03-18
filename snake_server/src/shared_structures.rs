@@ -16,7 +16,6 @@ pub enum PlayerStatus {
 pub struct Game {
     // Number of snakes that will be in the game
     pub nb_snakes: u32,
-    pub nb_snakes_alive: u32,
     // If None means that the Snake has lost
     pub snakes: Vec<Option<Snake>>,
     // Ids of snakes controlled by bots

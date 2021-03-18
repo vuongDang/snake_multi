@@ -80,7 +80,6 @@ impl Game {
         Ok(Game {
             points_to_win: POINTS_TO_WIN,
             nb_snakes: nb_snakes,
-            nb_snakes_alive: nb_snakes,
             snakes: snakes,
             food: Point::random(),
             bots: bots,
@@ -105,8 +104,8 @@ impl Game {
                                 None => (),
                                 Some(d) => snake.change_direction(d),
                             }
-                            player += 1;
                         }
+                        player += 1;
                     }
                 }
                 Leave(nb_players) => {
@@ -119,7 +118,6 @@ impl Game {
                     panic!("Client should not have sent an Init message at this stage");
                 }
             }
-            player += 1;
         }
         leavers
     }
@@ -188,13 +186,12 @@ impl Game {
         leavers_losers.dedup();
 
         // on enlève les serpents qui ont perdu ou quitté
-        self.nb_snakes_alive -= leavers_losers.len() as u32;
         for l in leavers_losers.iter() {
             self.snakes[(l - 1) as usize] = None;
             //self.bots.retain(|bot| *bot != *l);
 
             if leavers.contains(l) {
-                log!("Serpent {} has left!", l);
+                //log!("Serpent {} has left!", l);
                 self.scores[(l - 1) as usize] = PlayerStatus::Leaver;
             }
 
@@ -217,7 +214,11 @@ impl Game {
         }
 
         // Retourne les perdants
-        match self.nb_snakes_alive {
+        let nb_of_snakes_alive =
+            self.snakes
+                .iter()
+                .fold(0, |acc, snake| if snake.is_some() { acc + 1 } else { acc });
+        match nb_of_snakes_alive {
             0 => TurnOutcome::End(None),
             1 => {
                 let winner: Option<&Option<Snake>> =
