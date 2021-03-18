@@ -17,6 +17,10 @@ const MARGIN_TOP: u16 = 1;
 const PLAYER_1_CONTROLS: [u8; 4] = [b'q', b's', b'd', b'z'];
 const PLAYER_2_CONTROLS: [u8; 4] = [b'j', b'i', b'k', b'l'];
 
+const PLAYERS_CONTROLS: [[u8; 4]; 2] = [PLAYER_1_CONTROLS, PLAYER_2_CONTROLS];
+const PLAYERS_COLORS: [&dyn color::Color; 4] =
+    [&color::Red, &color::Blue, &color::Green, &color::Yellow];
+
 pub trait Drawer {
     fn init(nb_players: u32, serpents: Vec<u32>) -> Self;
     fn draw_game(&mut self, game: &Game);
@@ -138,27 +142,23 @@ impl Termion {
             cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y)
         )
         .unwrap();
-        current_y += 1;
-        write!(
-            self.stdout,
-            "{}Player 1: {:?}",
-            cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
-            PLAYER_1_CONTROLS
-                .iter()
-                .fold(String::from(""), |acc, c| format!("{}{}", acc, *c as char))
-        )
-        .unwrap();
 
-        current_y += 1;
-        write!(
-            self.stdout,
-            "{}Player 2: {:?}",
-            cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
-            PLAYER_2_CONTROLS
-                .iter()
-                .fold(String::from(""), |acc, c| format!("{}{}", acc, *c as char))
-        )
-        .unwrap();
+        for player in self.snakes_nb.iter() {
+            let player_index = (*player - 1) as usize;
+            current_y += 1;
+            write!(
+                self.stdout,
+                "{}{}Player {}: {:?}{}",
+                cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
+                color::Fg(PLAYERS_COLORS[player_index]),
+                player,
+                PLAYERS_CONTROLS[player_index]
+                    .iter()
+                    .fold(String::from(""), |acc, c| format!("{}{}", acc, *c as char)),
+                color::Fg(color::Reset)
+            )
+            .unwrap();
+        }
 
         self.stdout.flush().unwrap();
         current_y
@@ -209,41 +209,15 @@ impl Termion {
     }
 
     fn draw_snake(&mut self, snake: &Snake) {
-        match snake.id {
-            1 => write!(
-                self.stdout,
-                "{}{}{}",
-                cursor::Goto(snake.head.x, snake.head.y),
-                color::Fg(color::Red),
-                Termion::head_char(snake.direction.clone())
-            )
-            .unwrap(),
-            2 => write!(
-                self.stdout,
-                "{}{}{}",
-                cursor::Goto(snake.head.x, snake.head.y),
-                color::Fg(color::Blue),
-                Termion::head_char(snake.direction.clone())
-            )
-            .unwrap(),
-            3 => write!(
-                self.stdout,
-                "{}{}{}",
-                cursor::Goto(snake.head.x, snake.head.y),
-                color::Fg(color::Green),
-                Termion::head_char(snake.direction.clone())
-            )
-            .unwrap(),
-            4 => write!(
-                self.stdout,
-                "{}{}{}",
-                cursor::Goto(snake.head.x, snake.head.y),
-                color::Fg(color::Yellow),
-                Termion::head_char(snake.direction.clone())
-            )
-            .unwrap(),
-            _ => unimplemented!(),
-        };
+        let snake_index = snake.id - 1;
+        write!(
+            self.stdout,
+            "{}{}{}",
+            cursor::Goto(snake.head.x, snake.head.y),
+            color::Fg(PLAYERS_COLORS[snake_index as usize]),
+            Termion::head_char(snake.direction.clone())
+        )
+        .unwrap();
 
         for i in 0..snake.body.len() {
             write!(
@@ -340,69 +314,25 @@ impl Termion {
             current_y += 1;
             write!(
                 self.stdout,
-                "{}You are Player {}",
+                "{}You are {}Player {}{}",
                 cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
-                snake
-            )
-            .unwrap();
-        }
-        current_y += 1;
-
-        //Player1
-        current_y += 1;
-        if game.nb_snakes > 0 {
-            write!(
-                self.stdout,
-                "{}{}Score {}: {}{}",
-                cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
-                color::Fg(color::Red),
-                1,
-                score_msg(&game.scores[0]),
+                color::Fg(PLAYERS_COLORS[*snake as usize - 1]),
+                snake,
                 color::Fg(color::Reset)
             )
             .unwrap();
         }
-
-        //Player2
         current_y += 1;
-        if game.nb_snakes > 1 {
+
+        for (i, score) in game.scores.iter().enumerate() {
+            current_y += 1;
             write!(
                 self.stdout,
                 "{}{}Score {}: {}{}",
                 cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
-                color::Fg(color::Blue),
-                2,
-                score_msg(&game.scores[1]),
-                color::Fg(color::Reset)
-            )
-            .unwrap();
-        }
-
-        //Player3
-        current_y += 1;
-        if game.nb_snakes > 2 {
-            write!(
-                self.stdout,
-                "{}{}Score {}: {}{}",
-                cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
-                color::Fg(color::Green),
-                3,
-                score_msg(&game.scores[2]),
-                color::Fg(color::Reset)
-            )
-            .unwrap();
-        }
-
-        //Player4
-        current_y += 1;
-        if game.nb_snakes > 3 {
-            write!(
-                self.stdout,
-                "{}{}Score {}: {}{}",
-                cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
-                color::Fg(color::Yellow),
-                4,
-                score_msg(&game.scores[3]),
+                color::Fg(PLAYERS_COLORS[i]),
+                i + 1,
+                score_msg(score),
                 color::Fg(color::Reset)
             )
             .unwrap();
