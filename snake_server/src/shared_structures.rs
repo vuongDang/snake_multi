@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 // Dimensions du terrain de jeu
-pub const WIDTH: usize = 60;
+pub const WIDTH: usize = 40;
 pub const HEIGHT: usize = 21;
 pub const SERVER_ADDR: &str = "127.0.0.1:12345";
 
