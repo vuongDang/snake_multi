@@ -1,6 +1,6 @@
 pub mod client;
 pub mod shared_structures;
-use client::{Drawer, Termion, MAX_PLAYERS_ON_1_TERMINAL};
+use client::{max_players_on_terminal, Drawer, Termion};
 use shared_structures::ServerMsg::*;
 use shared_structures::{ClientMsg, ServerMsg, SERVER_ADDR};
 use std::env;
@@ -65,11 +65,11 @@ fn get_nb_of_players() -> Result<u32, String> {
 
     if args.len() > 1 {
         if let Ok(nb_players) = args[1].parse::<u32>() {
-            if nb_players <= MAX_PLAYERS_ON_1_TERMINAL {
+            if nb_players <= max_players_on_terminal() {
                 return Ok(nb_players);
             } else {
-                println!("{} {}", nb_players, MAX_PLAYERS_ON_1_TERMINAL);
-                return Err(format!("Maximum {} players", MAX_PLAYERS_ON_1_TERMINAL));
+                println!("{} {}", nb_players, max_players_on_terminal());
+                return Err(format!("Maximum {} players", max_players_on_terminal()));
             }
         } else {
             return Err(String::from("Arguments must be integers"));
@@ -83,7 +83,7 @@ fn listen_server(stream: &mut TcpStream) -> Result<ServerMsg, serde_json::error:
     stream.read(&mut buffer).expect("Disconnected from server");
     let json = String::from_utf8_lossy(&buffer);
     let json = &json.trim_end_matches(char::from(0));
-    //println!("Receiving game from server:\n {}", json);
+    //log_in_file(String::from(*json));
     serde_json::from_str(&json)
 }
 

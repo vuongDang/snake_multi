@@ -11,11 +11,10 @@ use termion::raw::{IntoRawMode, RawTerminal};
 use termion::{async_stdin, clear, color, cursor, AsyncReader};
 
 pub const FOOD_CHAR: char = 'Ծ';
-pub const MAX_PLAYERS_ON_1_TERMINAL: u32 = 2;
 const MARGIN_AFTER_FIELD: u16 = 4;
 const MARGIN_TOP: u16 = 1;
-const PLAYER_1_CONTROLS: [u8; 4] = [b'q', b's', b'd', b'z'];
-const PLAYER_2_CONTROLS: [u8; 4] = [b'j', b'i', b'k', b'l'];
+const PLAYER_1_CONTROLS: [u8; 4] = [b'q', b'z', b'd', b's'];
+const PLAYER_2_CONTROLS: [u8; 4] = [b'j', b'i', b'l', b'k'];
 
 const PLAYERS_CONTROLS: [[u8; 4]; 2] = [PLAYER_1_CONTROLS, PLAYER_2_CONTROLS];
 const PLAYERS_COLORS: [&dyn color::Color; 4] =
@@ -33,6 +32,10 @@ pub struct Termion {
     snakes_nb: Vec<u32>,
     stdin: AsyncReader,
     stdout: RawTerminal<Stdout>,
+}
+
+pub fn max_players_on_terminal() -> u32 {
+    std::cmp::max(PLAYERS_COLORS.len(), PLAYERS_CONTROLS.len()) as u32
 }
 
 impl Drawer for Termion {
@@ -79,41 +82,23 @@ impl Termion {
         let mut buffer = [0; 10];
         self.stdin.read(&mut buffer).unwrap();
         let mut v = vec![None; self.nb_players as usize];
+
         for c in buffer.iter() {
-            match c {
-                // Premier serpent
-                b'q' => v[0] = Some(Left),
-                b's' => v[0] = Some(Down),
-                b'z' => v[0] = Some(Up),
-                b'd' => v[0] = Some(Right),
-
-                // Deuxième serpent
-                b'j' => {
-                    if self.nb_players > 1 {
-                        v[1] = Some(Left)
-                    }
+            for i in 0..self.nb_players as usize {
+                match PLAYERS_CONTROLS[i].iter().position(|control| control == c) {
+                    None => (),
+                    Some(pos) => match pos {
+                        0 => v[i] = Some(Left),
+                        1 => v[i] = Some(Up),
+                        2 => v[i] = Some(Right),
+                        3 => v[i] = Some(Down),
+                        _ => panic!("Should not happen"),
+                    },
                 }
-                b'k' => {
-                    if self.nb_players > 1 {
-                        v[1] = Some(Down)
-                    }
-                }
-                b'i' => {
-                    if self.nb_players > 1 {
-                        v[1] = Some(Up)
-                    }
-                }
-                b'l' => {
-                    if self.nb_players > 1 {
-                        v[1] = Some(Right)
-                    }
-                }
-
-                // Quitter la partie avec la touch Esc
-                27 => {
-                    return Leave(self.nb_players);
-                }
-                _ => (),
+            }
+            // Quitter la partie avec la touch Esc
+            if *c == 27 {
+                return Leave(self.nb_players);
             }
         }
         log_in_file(format!("{:?}\n", v));
@@ -159,16 +144,16 @@ impl Termion {
         )
         .unwrap();
 
-        for player in self.snakes_nb.iter() {
+        for (i, player) in self.snakes_nb.iter().enumerate() {
             let player_index = (*player - 1) as usize;
             current_y += 1;
             write!(
                 self.stdout,
-                "{}{}Player {}: {:?}{}",
+                "{}{}Snake {}: {:?}{}",
                 cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
                 color::Fg(PLAYERS_COLORS[player_index]),
                 player,
-                PLAYERS_CONTROLS[player_index]
+                PLAYERS_CONTROLS[i]
                     .iter()
                     .fold(String::from(""), |acc, c| format!("{}{}", acc, *c as char)),
                 color::Fg(color::Reset)
@@ -330,7 +315,7 @@ impl Termion {
             current_y += 1;
             write!(
                 self.stdout,
-                "{}You are {}Player {}{}",
+                "{}You are {}Snake {}{}",
                 cursor::Goto(WIDTH as u16 + MARGIN_AFTER_FIELD, current_y),
                 color::Fg(PLAYERS_COLORS[*snake as usize - 1]),
                 snake,
