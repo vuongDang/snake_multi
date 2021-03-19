@@ -34,20 +34,14 @@ macro_rules! error {
 fn main() {
     let listener = TcpListener::bind(SERVER_ADDR).unwrap();
     log!("Server address: {}", SERVER_ADDR);
-    let game = match setup_game() {
-        Ok(g) => g,
+    let (nb_snakes, nb_bots) = match get_args() {
+        Ok(v) => v,
         Err(msg) => {
             error!("{}", msg);
             return;
         }
     };
-    let nb_humans = game.nb_snakes - (game.bots.len() as u32);
-    log!(
-        "Game created: snakes: {} - human players: {} - bots: {}",
-        game.nb_snakes,
-        nb_humans,
-        game.bots.len()
-    );
+    let nb_humans = nb_snakes - nb_bots;
 
     // Store every client connected with the players numbers associated
     let mut clients: Vec<(Vec<u32>, Option<TcpStream>)> = vec![];
@@ -84,38 +78,58 @@ fn main() {
             sock.shutdown(Shutdown::Both).unwrap();
         }
     }
-    play(game, clients);
+
+    // We restart game after 3 seconds
+    loop {
+        match Game::init(nb_snakes, nb_bots) {
+            Ok(game) => {
+                log!(
+                    "Game created: snakes: {} - human players: {} - bots: {}",
+                    nb_snakes,
+                    nb_humans,
+                    nb_bots
+                );
+
+                play(game, &mut clients);
+            }
+            Err(msg) => {
+                error!("{}", msg);
+                return;
+            }
+        }
+        sleep(Duration::from_secs(3));
+    }
 }
 
 // Crée une partie en fonction des arguments fournis
-fn setup_game() -> Result<Game, String> {
+fn get_args() -> Result<(u32, u32), String> {
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
         if let Ok(nb_snakes) = args[1].parse() {
             if args.len() > 2 {
                 if let Ok(nb_bots) = args[2].parse() {
-                    return Game::init(nb_snakes, nb_bots);
+                    return Ok((nb_snakes, nb_bots));
                 } else {
                     return Err(format!("Arguments should be integers: {}", args[2]));
                 }
             } else {
-                return Game::init(nb_snakes, nb_snakes - 1);
+                return Ok((nb_snakes, nb_snakes - 1));
             }
         } else {
             return Err(format!("Arguments should be integers: {}", args[1]));
         }
     }
-    Game::init(NB_SNAKES, NB_BOT)
+    Ok((NB_SNAKES, NB_BOT))
 }
 
 // Lance une partie de Snake
-fn play(mut game: Game, mut players: Vec<(Vec<u32>, Option<TcpStream>)>) {
+fn play(mut game: Game, players: &mut Vec<(Vec<u32>, Option<TcpStream>)>) {
     // TODO we should not clone
-    send_msg_to_clients(ServerMsg::Playing(game.clone(), vec![]), &mut players);
+    send_msg_to_clients(ServerMsg::Playing(game.clone(), vec![]), players);
     loop {
         sleep(Duration::from_millis(game.speed));
 
-        let players_inputs = listen_to_clients(&mut players);
+        let players_inputs = listen_to_clients(players);
 
         // on fait avancer le jeu d'un tour
         let turn_outcome = game.turn(players_inputs);
@@ -124,10 +138,10 @@ fn play(mut game: Game, mut players: Vec<(Vec<u32>, Option<TcpStream>)>) {
         match turn_outcome {
             // On envoie la partie avec les perdants éventuels
             TurnOutcome::Playing(losers) => {
-                send_msg_to_clients(ServerMsg::Playing(game.clone(), losers), &mut players)
+                send_msg_to_clients(ServerMsg::Playing(game.clone(), losers), players)
             }
             TurnOutcome::End(winner) => {
-                send_msg_to_clients(ServerMsg::End(winner), &mut players);
+                send_msg_to_clients(ServerMsg::End(winner), players);
                 log!("Game ended");
                 return;
             }
@@ -179,9 +193,9 @@ fn listen_to_client(client: (&mut Vec<u32>, Option<&mut TcpStream>)) -> ClientMs
             return json;
         } else {
             if let Ok(addr) = stream.peer_addr() {
-                error!("Client {} has sent erronous data", addr);
+                error!("Client {} has sent erronous data:\n{}", addr, json);
             } else {
-                error!("Client has sent erronous data");
+                error!("Client has sent erronous data:\n{}", json);
             }
         }
     }

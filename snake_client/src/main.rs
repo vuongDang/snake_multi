@@ -31,16 +31,19 @@ fn main() {
             }
 
             let mut client: Termion = Termion::init(nb_players, serpents);
+            let mut playing;
             loop {
                 // Reçoit les messages du serveur
                 match listen_server(&mut stream) {
                     Ok(msg) => match msg {
                         Error(e) => error_msg_from_server(Some(client), e),
-                        Playing(game, _) => client.draw_game(&game),
-                        //End(winner) => client.draw_end(winner),
+                        Playing(game, _) => {
+                            playing = true;
+                            client.draw_game(&game)
+                        }
                         End(winner) => {
                             client.draw_end(winner);
-                            break;
+                            playing = false;
                         }
                         _ => panic!("Should not happen"),
                     },
@@ -50,10 +53,11 @@ fn main() {
                         break;
                     }
                 }
-
                 // Récupère les touches des joueurs
-                let inputs = client.get_inputs();
-                send_msg_to_server(inputs, &mut stream);
+                if playing {
+                    let inputs = client.get_inputs();
+                    send_msg_to_server(inputs, &mut stream);
+                }
             }
         }
         Err(msg) => println!("ERROR: {}", msg),
@@ -83,7 +87,7 @@ fn listen_server(stream: &mut TcpStream) -> Result<ServerMsg, serde_json::error:
     stream.read(&mut buffer).expect("Disconnected from server");
     let json = String::from_utf8_lossy(&buffer);
     let json = &json.trim_end_matches(char::from(0));
-    //log_in_file(String::from(*json));
+    log_in_file(String::from(*json));
     serde_json::from_str(&json)
 }
 
@@ -101,7 +105,8 @@ fn error_msg_from_server(client: Option<Termion>, error_msg: String) -> ! {
     std::process::exit(1)
 }
 
-fn log_in_file(s: String) {
+fn log_in_file(mut s: String) {
+    s.push('\n');
     if let Ok(mut file) = OpenOptions::new().append(true).open(LOG_FILE) {
         file.write(s.as_bytes()).unwrap();
     }

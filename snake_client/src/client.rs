@@ -23,7 +23,7 @@ const PLAYERS_COLORS: [&dyn color::Color; 4] =
 const X_RATIO: u16 = 2;
 
 #[inline]
-fn client_WIDTH() -> u16 {
+fn client_width() -> u16 {
     X_RATIO * WIDTH as u16
 }
 
@@ -59,7 +59,7 @@ impl Drawer for Termion {
     }
 
     fn draw_game(&mut self, game: &Game) {
-        self.draw_field(client_WIDTH(), HEIGHT as u16);
+        self.draw_field(client_width(), HEIGHT as u16);
         for snake in game.snakes.iter() {
             if let Some(snake) = snake {
                 self.draw_snake(snake);
@@ -117,21 +117,21 @@ impl Termion {
         write!(
             self.stdout,
             "{}#How to win:",
-            cursor::Goto(client_WIDTH() + MARGIN_AFTER_FIELD, current_y)
+            cursor::Goto(client_width() + MARGIN_AFTER_FIELD, current_y)
         )
         .unwrap();
         current_y += 1;
         write!(
             self.stdout,
             "{}- Last survivor",
-            cursor::Goto(client_WIDTH() + MARGIN_AFTER_FIELD, current_y)
+            cursor::Goto(client_width() + MARGIN_AFTER_FIELD, current_y)
         )
         .unwrap();
         current_y += 1;
         write!(
             self.stdout,
             "{}- First to reach {}",
-            cursor::Goto(client_WIDTH() + MARGIN_AFTER_FIELD, current_y),
+            cursor::Goto(client_width() + MARGIN_AFTER_FIELD, current_y),
             points_to_win
         )
         .unwrap();
@@ -140,14 +140,14 @@ impl Termion {
         write!(
             self.stdout,
             "{}# Controls",
-            cursor::Goto(client_WIDTH() + MARGIN_AFTER_FIELD, current_y)
+            cursor::Goto(client_width() + MARGIN_AFTER_FIELD, current_y)
         )
         .unwrap();
         current_y += 1;
         write!(
             self.stdout,
             "{}Quit: \"Esc\"",
-            cursor::Goto(client_WIDTH() + MARGIN_AFTER_FIELD, current_y)
+            cursor::Goto(client_width() + MARGIN_AFTER_FIELD, current_y)
         )
         .unwrap();
 
@@ -157,7 +157,7 @@ impl Termion {
             write!(
                 self.stdout,
                 "{}{}Snake {}: {:?}{}",
-                cursor::Goto(client_WIDTH() + MARGIN_AFTER_FIELD, current_y),
+                cursor::Goto(client_width() + MARGIN_AFTER_FIELD, current_y),
                 color::Fg(PLAYERS_COLORS[player_index]),
                 player,
                 PLAYERS_CONTROLS[i]
@@ -259,7 +259,7 @@ impl Termion {
     }
 
     fn draw_draw(&mut self) {
-        let w: u16 = client_WIDTH();
+        let w: u16 = client_width();
         let h: u16 = HEIGHT as u16;
         write!(
             self.stdout,
@@ -283,7 +283,7 @@ impl Termion {
     }
 
     fn draw_winner(&mut self, winner: u32) {
-        let w: u16 = client_WIDTH();
+        let w: u16 = client_width();
         let h: u16 = HEIGHT as u16;
         write!(
             self.stdout,
@@ -323,7 +323,7 @@ impl Termion {
             write!(
                 self.stdout,
                 "{}You are {}Snake {}{}",
-                cursor::Goto(client_WIDTH() + MARGIN_AFTER_FIELD, current_y),
+                cursor::Goto(client_width() + MARGIN_AFTER_FIELD, current_y),
                 color::Fg(PLAYERS_COLORS[*snake as usize - 1]),
                 snake,
                 color::Fg(color::Reset)
@@ -337,7 +337,7 @@ impl Termion {
             write!(
                 self.stdout,
                 "{}{}Score {}: {}{}",
-                cursor::Goto(client_WIDTH() + MARGIN_AFTER_FIELD, current_y),
+                cursor::Goto(client_width() + MARGIN_AFTER_FIELD, current_y),
                 color::Fg(PLAYERS_COLORS[i]),
                 i + 1,
                 score_msg(score),
