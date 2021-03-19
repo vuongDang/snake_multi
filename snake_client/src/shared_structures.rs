@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 // Dimensions du terrain de jeu
 pub const WIDTH: usize = 60;
-pub const HEIGHT: usize = 20;
+pub const HEIGHT: usize = 21;
 pub const SERVER_ADDR: &str = "127.0.0.1:12345";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -50,7 +50,7 @@ pub enum Direction {
 }
 
 // Structure du serpent
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Snake {
     pub id: u32,
     pub head: Point,

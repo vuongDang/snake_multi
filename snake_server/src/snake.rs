@@ -97,55 +97,24 @@ impl Snake {
 
     pub fn init(nb_players: u32, player_nb: u32) -> Self {
         let x;
-        let y;
         let direction;
         let body;
 
-        if nb_players <= 2 {
-            match player_nb {
-                1 => {
-                    x = WIDTH as u16 / 4;
-                    y = HEIGHT as u16 / 2;
-                    direction = Direction::Right;
-                    body = (x - 1, y);
-                }
-                2 => {
-                    x = WIDTH as u16 * 3 / 4;
-                    y = HEIGHT as u16 / 2;
-                    direction = Direction::Left;
-                    body = (x + 1, y);
-                }
-                _ => unimplemented!(), // should not happen
-            }
+        let floor: u16 = (player_nb as u16 + 1) / 2;
+        let total_nb_of_floors: u16 = (((nb_players + 1) / 2) as u16) + 1;
+        let size_of_floor = HEIGHT as u16 / total_nb_of_floors;
+        let y = floor * size_of_floor;
+
+        if player_nb % 2 == 0 {
+            x = WIDTH as u16 * 3 / 4;
+            direction = Direction::Left;
+            body = (x + 1, y);
         } else {
-            match player_nb {
-                1 => {
-                    x = WIDTH as u16 / 4;
-                    y = HEIGHT as u16 / 4;
-                    direction = Direction::Right;
-                    body = (x - 1, y);
-                }
-                2 => {
-                    x = WIDTH as u16 * 3 / 4;
-                    y = HEIGHT as u16 / 4;
-                    direction = Direction::Left;
-                    body = (x + 1, y);
-                }
-                3 => {
-                    x = WIDTH as u16 / 4;
-                    y = HEIGHT as u16 * 3 / 4;
-                    direction = Direction::Right;
-                    body = (x - 1, y);
-                }
-                4 => {
-                    x = WIDTH as u16 * 3 / 4;
-                    y = HEIGHT as u16 * 3 / 4;
-                    direction = Direction::Left;
-                    body = (x + 1, y);
-                }
-                _ => unimplemented!(), // should not happen
-            }
-        }
+            x = WIDTH as u16 / 4;
+            direction = Direction::Right;
+            body = (x - 1, y);
+        };
+
         Snake {
             id: player_nb,
             head: Point::new(x, y),
