@@ -1,6 +1,8 @@
 use crate::shared_structures::{Direction, Point, Snake, HEIGHT, WIDTH};
 use rand::Rng;
 
+pub(crate) const INIT_BODY_SIZE: u32 = 3;
+
 impl Snake {
     pub fn change_direction(&mut self, d: Direction) {
         match (&self.direction, d) {
@@ -98,7 +100,7 @@ impl Snake {
     pub fn init(nb_players: u32, player_nb: u32) -> Self {
         let x;
         let direction;
-        let body;
+        let mut body = vec![];
 
         let floor: u16 = (player_nb as u16 + 1) / 2;
         let total_nb_of_floors: u16 = (((nb_players + 1) / 2) as u16) + 1;
@@ -108,17 +110,21 @@ impl Snake {
         if player_nb % 2 == 0 {
             x = WIDTH as u16 * 3 / 4;
             direction = Direction::Left;
-            body = (x + 1, y);
+            for i in 1..=INIT_BODY_SIZE as u16 {
+                body.push(Point::new(x + i, y));
+            }
         } else {
             x = WIDTH as u16 / 4;
             direction = Direction::Right;
-            body = (x - 1, y);
+            for i in 1..=INIT_BODY_SIZE as u16 {
+                body.push(Point::new(x - i, y));
+            }
         };
 
         Snake {
             id: player_nb,
             head: Point::new(x, y),
-            body: vec![Point::new(body.0, body.1)],
+            body: body,
             direction: direction,
         }
     }

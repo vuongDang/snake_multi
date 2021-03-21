@@ -1,12 +1,13 @@
 use crate::log;
 use crate::shared_structures::ClientMsg::*;
 use crate::shared_structures::*;
+use crate::snake;
 use rand::Rng;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 
 const SPEED: u64 = 150;
-const POINTS: i32 = 10;
+const POINTS: u32 = 10;
 const LOG_FILE: &'static str = "log";
 const MAX_SNAKE_NB: u32 = 4;
 const POINTS_TO_WIN: u32 = 50;
@@ -166,7 +167,7 @@ impl Game {
 
                 // Vérification
                 if let PlayerStatus::Player(points) = self.scores[i] {
-                    assert!((snake.body.len() as i32 - 1) * 10 == points);
+                    assert!((snake.body.len() as u32 - snake::INIT_BODY_SIZE) * 10 == points);
                 }
             }
         }
@@ -205,7 +206,7 @@ impl Game {
         for (player, score) in self.scores.iter().enumerate() {
             match score {
                 PlayerStatus::Player(points) => {
-                    if *points >= self.points_to_win as i32 {
+                    if *points >= self.points_to_win {
                         return TurnOutcome::End(Some(player as u32 + 1));
                     }
                 }

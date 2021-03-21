@@ -9,7 +9,7 @@ pub const SERVER_ADDR: &str = "127.0.0.1:12345";
 pub enum PlayerStatus {
     Loser,
     Leaver,
-    Player(i32), //Playing and current score
+    Player(u32), //Playing and current score
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
