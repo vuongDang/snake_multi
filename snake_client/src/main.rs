@@ -11,6 +11,11 @@ use std::net::TcpStream;
 
 pub(crate) const LOG_FILE: &'static str = "log";
 
+enum ErrorFromServer {
+    MessageError(serde_json::error::Error),
+    StreamError(std::io::Error),
+}
+
 fn main() {
     match get_nb_of_players() {
         Ok(nb_players) => {
@@ -36,7 +41,7 @@ fn main() {
                 // Reçoit les messages du serveur
                 match listen_server(&mut stream) {
                     Ok(msg) => match msg {
-                        Error(e) => error_msg_from_server(Some(client), e),
+                        ServerMsg::Error(e) => error_msg_from_server(Some(client), e),
                         Playing(game, _) => {
                             playing = true;
                             client.draw_game(&game)
@@ -47,15 +52,35 @@ fn main() {
                         }
                         _ => panic!("Should not happen"),
                     },
-                    Err(e) => {
-                        drop(client);
-                        println!("{}", e);
-                        break;
-                    }
+                    Err(ErrorFromServer::MessageError(e)) => match e.classify() {
+                        serde_json::error::Category::Eof => error_msg_from_server(
+                            Some(client),
+                            String::from("Server has disconnected"),
+                        ),
+                        _ => error_msg_from_server(
+                            Some(client),
+                            format!("MessageError: {}", e.to_string()),
+                        ),
+                    },
+                    Err(ErrorFromServer::StreamError(e)) => match e.kind() {
+                        std::io::ErrorKind::ConnectionReset => error_msg_from_server(
+                            Some(client),
+                            String::from("Server has disconnected"),
+                        ),
+                        std::io::ErrorKind::UnexpectedEof => error_msg_from_server(
+                            Some(client),
+                            String::from("Server has disconnected"),
+                        ),
+
+                        _ => error_msg_from_server(Some(client), String::from("toto")),
+                    },
                 }
                 // Récupère les touches des joueurs
                 if playing {
                     let inputs = client.get_inputs();
+                    if let ClientMsg::Leave(_) = inputs {
+                        return;
+                    }
                     send_msg_to_server(inputs, &mut stream);
                 }
             }
@@ -82,13 +107,21 @@ fn get_nb_of_players() -> Result<u32, String> {
     Ok(1)
 }
 
-fn listen_server(stream: &mut TcpStream) -> Result<ServerMsg, serde_json::error::Error> {
+fn listen_server(stream: &mut TcpStream) -> Result<ServerMsg, ErrorFromServer> {
     let mut buffer = [0; 1024];
-    stream.read(&mut buffer).expect("Disconnected from server");
-    let json = String::from_utf8_lossy(&buffer);
-    let json = &json.trim_end_matches(char::from(0));
-    log_in_file(String::from(*json));
-    serde_json::from_str(&json)
+    match stream.read(&mut buffer) {
+        Ok(_) => {
+            let json = String::from_utf8_lossy(&buffer);
+            let json = &json.trim_end_matches(char::from(0));
+            log_in_file(String::from(*json));
+            match serde_json::from_str(&json) {
+                Ok(msg) => Ok(msg),
+                Err(e) => Err(ErrorFromServer::MessageError(e)),
+            }
+        }
+        // TODO handle properly
+        Err(e) => Err(ErrorFromServer::StreamError(e)),
+    }
 }
 
 fn send_msg_to_server(msg: ClientMsg, stream: &mut TcpStream) {

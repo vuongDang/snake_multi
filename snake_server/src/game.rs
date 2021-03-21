@@ -214,6 +214,8 @@ impl Game {
             }
         }
 
+        // Si il n'y a plus de joueurs "humains", on arrête
+
         // Retourne les perdants
         let nb_of_snakes_alive =
             self.snakes

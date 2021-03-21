@@ -90,13 +90,23 @@ fn main() {
                     nb_bots
                 );
 
-                play(game, &mut clients);
+                play(game, &mut clients)
             }
             Err(msg) => {
                 error!("{}", msg);
                 return;
             }
         }
+
+        // Si il n'y a plus de joueurs "humains" on arrête
+        if clients
+            .iter()
+            .fold(true, |acc, (_, stream)| acc && stream.is_none())
+        {
+            log!("No players left, turning off the server");
+            return;
+        }
+
         sleep(Duration::from_secs(3));
     }
 }
@@ -123,6 +133,7 @@ fn get_args() -> Result<(u32, u32), String> {
 }
 
 // Lance une partie de Snake
+// Retourne true pour relancer une partie sinon retoune false
 fn play(mut game: Game, players: &mut Vec<(Vec<u32>, Option<TcpStream>)>) {
     // TODO we should not clone
     send_msg_to_clients(ServerMsg::Playing(game.clone(), vec![]), players);
