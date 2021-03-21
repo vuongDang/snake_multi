@@ -1,14 +1,25 @@
 # Introduction
-A small multiplayer snake game written in Rust for training purpose.
+A small multiplayer snake game written in Rust for learning purpose.
 - `snake_server` is the server-side of the game
 - `snake_client` is the client-side, multiple instances can be executed
 	to connect to a game hosted by an instance of `snake_server`
 
 # Requirements
-This project uses the Rust crate _termion_ which supports
-Supports Redox, Mac OS X, and Linux (or, in general, ANSI terminals).
+- Rust environment and cargo
+- This project uses the Rust crate _termion_ which supports
+ Redox, Mac OS X, and Linux (or, in general, ANSI terminals).
+	
+# Compile the projects
+Use the makefile:
+> make
 
-# Start a game
+# Start demos
+- 1 player game with 4 snakes
+	> make demo1
+- 2 players game with 4 snakes
+	> make demo2
+
+# Start a game manually
 1. Launch binary from `snake_server`
 	> cargo run			// in snake_server directory 
 	- Without any arguments you will have a game with 4 snakes
@@ -22,5 +33,4 @@ Supports Redox, Mac OS X, and Linux (or, in general, ANSI terminals).
 	- Without any arguments your terminal will host one player
 	- You can also play with 2 players on the same terminal
 		> cargo run 2
-		
-	
+
