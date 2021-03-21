@@ -8,6 +8,7 @@ A small multiplayer snake game written in Rust for learning purpose.
 - Rust environment and cargo
 - This project uses the Rust crate _termion_ which supports
  Redox, Mac OS X, and Linux (or, in general, ANSI terminals).
+- This project has been solely developed and tested on Fedora 33
 	
 # Compile the projects
 Use the makefile:
