@@ -168,6 +168,21 @@ impl Termion {
             .unwrap();
         }
 
+        current_y += 2;
+        write!(
+            self.stdout,
+            "{}Note: the game restart",
+            cursor::Goto(client_width() + MARGIN_AFTER_FIELD, current_y)
+        )
+        .unwrap();
+        current_y += 1;
+        write!(
+            self.stdout,
+            "{}automatically at the end",
+            cursor::Goto(client_width() + MARGIN_AFTER_FIELD, current_y)
+        )
+        .unwrap();
+
         self.stdout.flush().unwrap();
         current_y
     }
